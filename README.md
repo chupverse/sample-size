@@ -87,9 +87,22 @@ Consider the following RCT with two parallel groups with a 1:1 randomization rat
 
 ```r
 library(epiR)
-		
-epi.sscompc(treat = 66, control = 72,	sigma = 23, n = NA, power = 0.8, 
-		      	r = 1, sided.test = 2, conf.level = 1-0.05)
+
+sample_mean <- function(mean1, mean0, sigma, power, r, sided.test, conf.level) {
+
+  result <- epi.sscompc(treat = mean1, control = mean0,	sigma = sigma, n = NA, power = power, 
+  		      	          r = r, sided.test = sided.test, conf.level = conf.level)
+  		      	          
+  if (result$n.treat<30 | result$n.control<30) {
+    warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+    size calculation may not be valid.")
+  }
+
+  return(result)
+}
+
+sample_mean(mean1 = 66, mean0 = 72, sigma = 23, power = 0.8, 
+            r = 1, sided.test = 2, conf.level = 1-0.05)
 
 #> $n.total
 #> [1] 462
@@ -108,10 +121,9 @@ epi.sscompc(treat = 66, control = 72,	sigma = 23, n = NA, power = 0.8,
 ```
 
 **Input parameters:**
-* treat: expected mean in the experimental arm
-* control: expected mean in the control arm
+* mean1: expected mean in the experimental arm
+* mean0: expected mean in the control arm
 * sigma: expected standard deviation in the two arms
-* n: define as NA
 * power: required power (1 minus type II error rate)
 * r: randomization ratio (experimental:control)
 * sided.test: one-sided test (1) or two-sided test (2) 
@@ -132,15 +144,18 @@ Consider the following stepped wedge RCT with 30 centers randomized in 30 sequen
 ```r
 library(epiR)
 
-SampSize_I <- epi.sscompc(treat = 38, control = 48, sigma = 17, n = NA, 
-                          r = 1, power = 0.9, sided.test = 2, conf.level = 1-0.05)
-
-SampSize_I$n.total
-
-# [1] 122
-
-SampleSize_SW <- function(ni, center=30, sequence=30, icc=0.05)
-  {
+SampleSize_SW <- function(mean1, mean0, sigma, r, power, sided.test, conf.level,
+center, sequence, icc) {
+  
+  SampSize_I <- epi.sscompc(treat = mean1, control = mean0, sigma = sigma, n = NA, 
+                          r = r, power = power, sided.test = sided.test, conf.level = conf.level)
+  
+  if (SampSize_I$n.treat<30 | SampSize_I$n.control<30) {
+    warning("--> At least one group size is < 30, in case of individual randomisation. Normality 
+    assumption is questionnable and sample size calculation may not be valid.")
+  }
+  
+  ni <- SampSize_I$n.total
   aa <- -2*center*(sequence - 1/sequence)*icc*(1+sequence/2)
   bb <- 3*ni*(1-icc)*icc*(1+sequence) - 2*center*(sequence -1/sequence)*(1-icc)
   cc <- 3*ni*(1-icc)*(1-icc) 
@@ -149,24 +164,32 @@ SampleSize_SW <- function(ni, center=30, sequence=30, icc=0.05)
   m_sol <- max(m1,m2)
   Npat_center <- m_sol*(sequence+1) 
   N_tot_SW <- Npat_center*center 
-  return(2*ceiling(N_tot_SW /2))
-  }
+  
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_SW /2))
+  names(res) <- c("n.indiv","n.SW")
+  return(res)
 
-SampleSize_SW(ni = SampSize_I$n.total, center = 30, sequence = 30, icc = 0.05)
+}
 
+SampleSize_SW(mean1 = 38, mean0 = 48, sigma = 17, r=1, power = 0.9, sided.test = 2,
+              conf.level = 1-0.05, center = 30, sequence = 30, icc = 0.05)
+
+# $n.indiv
+# [1] 122
+# 
+# $n.SW
 # [1] 208
+
 ```
 
 **Input parameters:**
-* treat: expected mean in the experimental arm
-* control: expected mean in the control arm
+* mean1: expected mean in the experimental arm
+* mean0: expected mean in the control arm
 * sigma: expected standard deviation in the two arms
-* n: number of subjects to include (experimental + control) define as NA
-* r: randomization ratio (experimental:control)
+* r: individual randomization ratio (experimental:control)
 * power: required power (1 minus type II error rate)
 * sided.test: one-sided test (1) or two-sided test (2) 
 * conf.level: required confidence level (1 minus type I error rate)
-* ni: sample size in case of individual randomization
 * center: number of centers
 * sequence: number of sequences
 * icc: expected intraclass correlation coefficient
@@ -235,9 +258,21 @@ Consider the following RCT with two parallel groups with a 1:1 randomization rat
 
 ```r
 library(epiR)
-	
-epi.ssninfc(treat = 66, control = 66, sigma = 23, delta = 7,
-            power = 0.8, alpha = 0.05, r = 1, n = NA)
+
+sample_mean <- function(mean0, sigma, delta, r, power, alpha) {
+
+  result <- epi.ssninfc(treat = mean0, control = mean0,	sigma = sigma, delta = delta, n = NA,
+                        r = r, power = power, alpha = alpha)
+  		      	          
+  if (result$n.treat<30 | result$n.control<30) {
+  warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+  size calculation may not be valid.")
+  }
+
+  return(result)
+}
+
+sample_mean(mean0 = 66, sigma = 23, delta = 7, r = 1, power = 0.8, alpha = 0.05)
 
 #> $n.total
 #> [1] 268
@@ -256,14 +291,13 @@ epi.ssninfc(treat = 66, control = 66, sigma = 23, delta = 7,
 ```
 	
 **Input parameters:**
-* treat: expected mean in the experimental arm
-* control: expected mean in the control arm
+* mean0: expected mean in both control and experimental arms
 * sigma: expected standard deviation in the two arms
 * delta: absolute non-inferiority margin
-* alpha: required type I error rate
-* power: required power (1 minus type II error rate)
 * r: randomization ratio (experimental:control)
-* n: number of subjects to include (experimental + control) define as NA
+* power: required power (1 minus type II error rate)
+* alpha: required type I error rate
+
 
   </details>
 </ul>
@@ -280,41 +314,50 @@ Consider the following stepped wedge RCT with 30 centers randomized in 30 sequen
 ```r
 library(epiR)
 
-SampSize_I <- epi.ssninfc(treat = 48, control = 48, sigma = 17, delta = 7,
-                          n = NA, r = 1, power = 0.9, alpha = 0.05)
+SampleSize_SW <- function(mean0, sigma, delta, r, power, alpha, center, sequence, icc) {
 
-SampSize_I$n.total
-
-# [1] 204          
-               
-SampleSize_SW <- function(ni, center=30, sequence=30, icc=0.05)
-  {
+  SampSize_I <- epi.ssninfc(treat = mean0, control = mean0, sigma = sigma, delta = delta, 
+                            n = NA, r = r, power = power, alpha = alpha)
+  
+  if (SampSize_I$n.treat<30 | SampSize_I$n.control<30) {
+    warning("--> At least one group size is < 30, in case of individual randomisation. Normality 
+    assumption is questionnable and sample size calculation may not be valid.")
+  }
+  
+  ni <- SampSize_I$n.total
   aa <- -2*center*(sequence - 1/sequence)*icc*(1+sequence/2)
   bb <- 3*ni*(1-icc)*icc*(1+sequence) - 2*center*(sequence -1/sequence)*(1-icc)
-  cc <- 3*ni*(1-icc)*(1-icc)
+  cc <- 3*ni*(1-icc)*(1-icc) 
   m1 <- (-bb + sqrt(bb^2 - 4*aa*cc)) / (2*aa)
   m2 <- (-bb - sqrt(bb^2 - 4*aa*cc)) / (2*aa)
-  m_sol <- max(m1,m2) 
+  m_sol <- max(m1,m2)
   Npat_center <- m_sol*(sequence+1) 
   N_tot_SW <- Npat_center*center 
-  return(2*ceiling(N_tot_SW /2))
-  }
+  
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_SW /2))
+  names(res) <- c("n.indiv","n.SW")
+  return(res)
 
-SampleSize_SW(ni = SampSize_I$n.total, center = 30, sequence = 30, icc = 0.05)
+}
 
+SampleSize_SW(mean0 = 48, sigma = 17, delta = 7, r = 1, power = 0.9, alpha = 0.05,
+              center = 30, sequence = 30, icc = 0.05)
+
+# $n.indiv
+# [1] 204
+# 
+# $n.SW
 # [1] 372
+
 ```
 
 **Input parameters:**
-* treat: expected mean in the experimental arm
-* control: expected mean in the control arm
+* mean0: expected mean in both control and experimental arms
 * sigma: expected standard deviation in the two arms
 * delta: absolute non-inferiority margin
-* n: number of subjects to include (experimental + control) define as NA
-* r: randomization ratio (experimental:control)
+* r: individual randomization ratio (experimental:control)
 * power: required power (1 minus type II error rate)
 * alpha: required confidence level (type I error rate)
-* ni: sample size in case of individual randomization
 * center: number of centers
 * sequence: number of sequences
 * icc: expected ntraclass correlation coefficient
@@ -385,8 +428,28 @@ Consider the following RCT with two parallel groups with a 1:1 randomization rat
 ```r
 library(epiR)
 
-epi.sscohortc(irexp1 = 0.35, irexp0 = 0.28, n = NA, power = 0.80, 
-              r = 1, sided.test = 2, conf.level = 1-0.05)
+sample_proportion <- function(p1, p0, power, r, sided.test, conf.level) {
+
+  result <- epi.sscohortc(irexp1 = p1, irexp0 = p0, n = NA, power = power,
+                          r = r, sided.test = sided.test, conf.level = conf.level)
+  
+  if (result$n.exp1<30 | result$n.exp0<30) {
+  warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+  size calculation may not be valid.")
+  }
+  pmean <- (p1+p0)/2
+  if (pmean*result$n.exp1 <5 | pmean*result$n.exp0 <5 
+  | (1-pmean)*result$n.exp1 < 5 | (1-pmean)*result$n.exp0 <5) {
+  warning("--> At least one theoretical effective is < 5, normality assumption is questionnable 
+  and sample size calculation may not be valid.")
+  }
+  
+  return(result)
+
+}
+
+sample_proportion(p1 = 0.35, p0 = 0.28, power = 0.80, 
+                  r = 1, sided.test = 2, conf.level = 1-0.05)
 
 #> $n.total
 #> [1] 1382
@@ -408,12 +471,11 @@ epi.sscohortc(irexp1 = 0.35, irexp0 = 0.28, n = NA, power = 0.80,
 ```
 	
 **Input parameters:**
-*	irexp1: expected proportion in the experimental group
-*	irexp0: expected proportion in the control group
-*	n: number of subjects to include (experimental + control) define as NA
+*	p1: expected proportion in the experimental group
+*	p0: expected proportion in the control group
 *	power: required power (1 minus type II error rate)
 * r: randomization ratio (experimental:control)
-* sided: one-sided test (1), two-sided test (2)
+* sided.test: one-sided test (1), two-sided test (2)
 * conf.level: recquired confidence level (1 minus type I error rate)
 
     </summary>
@@ -433,15 +495,24 @@ Consider the following stepped wedge RCT with 15 centers randomized in 5 sequenc
 ```r
 library(epiR)
 
-SampSize_I <- epi.sscohortc(irexp1 = 0.72, irexp0 = 0.62, n = NA, r = 1,
-                            power = 0.80, sided.test = 2, conf.level = 1-0.05)
-                            
-SampSize_I$n.total
+SampleSize_SW <- function(p1, p0, r, power, sided.test, conf.level, center, sequence, icc) {
+  
+  SampSize_I <- epi.sscohortc(irexp1 = p1, irexp0 = p0, n = NA, r = r,
+                              power = power, sided.test = sided.test, conf.level = conf.level)
+                              
+  
+  if (SampSize_I$n.exp1<30 | SampSize_I$n.exp0<30) {
+  warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+  size calculation may not be valid.")
+  }
+  pmean <- (p1+p0)/2
+  if (pmean*SampSize_I$n.exp1 <5 | pmean*SampSize_I$n.exp0 <5 
+  | (1-pmean)*SampSize_I$n.exp1 < 5 | (1-pmean)*SampSize_I$n.exp0 <5) {
+  warning("--> At least one theoretical effective is < 5, normality assumption is questionnable 
+  and sample size calculation may not be valid.")
+  }
 
-# [1] 692
-
-SampleSize_SW <- function(ni, center=15, sequence=5, icc=0.01)
-  {
+  ni <- SampSize_I$n.total
   aa <- -2*center*(sequence - 1/sequence)*icc*(1+sequence/2) 
   bb <- 3*ni*(1-icc)*icc*(1+sequence) - 2*center*(sequence -1/sequence)*(1-icc)
   cc <- 3*ni*(1-icc)*(1-icc)
@@ -450,23 +521,30 @@ SampleSize_SW <- function(ni, center=15, sequence=5, icc=0.01)
   m_sol <- max(m1,m2) 
   Npat_center <- m_sol*(sequence+1) 
   N_tot_SW <- Npat_center*center 
-  return(2*ceiling(N_tot_SW /2))
-  }
+  
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_SW /2))
+  names(res) <- c("n.indiv","n.SW")
+  return(res)
+}
 
-SampleSize_SW(ni = SampSize_I$n.total, center = 15, sequence = 5, icc = 0.01)
+SampleSize_SW(p1 = 0.72, p0 = 0.62, r = 1, power = 0.80, sided.test = 2, 
+              conf.level = 1-0.05, center = 15, sequence = 5, icc = 0.01)
 
+# $n.indiv
+# [1] 692
+# 
+# $n.SW
 # [1] 1646
+
 ```
 	
 **Input parameters:**
-*	irexp1: expected proportion in the experimental group
-*	irexp0: expected proportion in the control group
-* n: number of subjects to include (experimental + control) define as NA
-* r: randomization ratio (experimental:control)
+*	p1: expected proportion in the experimental group
+*	p0: expected proportion in the control group
+* r: individual randomization ratio (experimental:control)
 *	power: required power (1 minus type II error rate)
 * sided.test: one-sided test (1), two-sided test (2)
 * conf.level: required confidence level (1 minus type I error rate)
-* ni: sample size in case of individual randomization
 * center: number of centers
 * sequence: number of sequences
 * icc: expected intraclass correlation coefficient
@@ -534,8 +612,26 @@ Consider the following RCT with two parallel groups with a 1:1 randomization rat
 </em>
 
 ```r
-epi.ssninfb(treat = 0.35, control = 0.35, delta = 0.05, 
-			n = NA, r = 1, power = 0.8, alpha = 0.05)
+
+sample_proportion <- function(p0, delta, r, power, alpha) {
+
+  result <- epi.ssninfb(treat = p0, control = p0, delta = delta, n = NA, 
+                          r = r, power = power, alpha = alpha)
+  
+  if (result$n.treat<30 | result$n.control<30) {
+  warning("--> At least one group size is < 30, normality assumption is questionnable and sample size calculation may not be valid.")
+  }
+  pmean <- p0
+  if (pmean*result$n.treat <5 | pmean*result$n.control <5 | (1-pmean)*result$n.treat < 5 | (1-pmean)*result$n.control <5) {
+  warning("--> At least one theoretical effective is < 5, normality assumption is questionnable and sample 
+  size calculation may not be valid.")
+  }
+  
+  return(result)
+
+}
+
+sample_proportion(p0 = 0.35, delta = 0.05, r = 1, power = 0.8, alpha = 0.05)
 
 #> $n.total
 #> [1] 2252
@@ -554,13 +650,12 @@ epi.ssninfb(treat = 0.35, control = 0.35, delta = 0.05,
 ```
 	
 **Parameters :**
-* treat: expected proportion in the experimental arm
-* control: expected proportion in the control arm
+* p0: expected proportion in both control and experimental arms
 * delta: absolute non-inferiority margin
-* alpha: required type I error rate
-* power: required power (1 minus type II error rate)
 * r: randomization ratio (experimental:control)
-* n: number of subjects to include (experimental + control) define as NA
+* power: required power (1 minus type II error rate)
+* alpha: required type I error rate
+
 
   </details>
 </ul>
@@ -577,15 +672,24 @@ Consider the following stepped wedge RCT with 15 centers randomized in 5 sequenc
 ```r
 library(epiR)
 
-SampSize_I <- epi.ssninfb(treat = 0.72, control = 0.72, delta = 0.08, 
-                          n = NA, r = 1, power = 0.8, alpha = 0.05)
-                          
-SampSize_I$n.total
+SampleSize_SW <- function(p0, delta, r, power, alpha, center, sequence, icc) {
+  
+  SampSize_I <- epi.ssninfb(treat = p0, control = p0, delta = delta, n = NA, r = r,
+                            power = power, alpha = alpha)
+                              
+  
+  if (SampSize_I$n.treat<30 | SampSize_I$n.control<30) {
+    warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+    size calculation may not be valid.")
+  }
+  pmean <- p0
+  if (pmean*SampSize_I$n.treat <5 | pmean*SampSize_I$n.control <5 
+  | (1-pmean)*SampSize_I$n.treat < 5 | (1-pmean)*SampSize_I$n.control <5) {
+    warning("--> At least one theoretical effective is < 5, normality assumption is questionnable 
+    and sample size calculation may not be valid.")
+  }
 
-# [1] 780
-
-SampleSize_SW <- function(ni, center=15, sequence=5, icc=0.01)
-  {
+  ni <- SampSize_I$n.total
   aa <- -2*center*(sequence - 1/sequence)*icc*(1+sequence/2) 
   bb <- 3*ni*(1-icc)*icc*(1+sequence) - 2*center*(sequence -1/sequence)*(1-icc)
   cc <- 3*ni*(1-icc)*(1-icc)
@@ -594,23 +698,27 @@ SampleSize_SW <- function(ni, center=15, sequence=5, icc=0.01)
   m_sol <- max(m1,m2) 
   Npat_center <- m_sol*(sequence+1) 
   N_tot_SW <- Npat_center*center
-  return(2*ceiling(N_tot_SW /2))
-  }
 
-SampleSize_SW(ni = SampSize_I$n.total, center = 15, sequence = 5, icc = 0.01)
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_SW /2))
+  names(res) <- c("n.indiv","n.SW")
+  return(res)
+}
 
+SampleSize_SW(p0=0.72, delta=0.08, r=1, power=0.8, alpha=0.05, center=15, sequence=5, icc=0.01)
+
+# $n.indiv
+# [1] 780
+# 
+# $n.SW
 # [1] 1890
 ```
 
 **Input parameters:**
-* treat: expected proportion in the experimental arm
-* control: expected proportion in the control arm
+* p0: expected proportion in both control and experimental arms
 * delta: absolute non-inferiority margin
-* n: number of subjects to include (experimental + control) define as NA
-* r: randomization ratio (experimental:control)
+* r: individual randomization ratio (experimental:control)
 * power: required power (1 minus type II error rate)
 * alpha: required type I error rate
-* ni: sample size in case of individual randomization
 * center: number of centers
 * sequence: number of sequences
 * icc: expected intraclass correlation coefficient
