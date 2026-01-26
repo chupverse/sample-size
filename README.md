@@ -10,7 +10,9 @@ This page is devoted to the calculation of the number of patients required for s
 
 * **Sequential RCT:** Intermediate analyses for early stopping the study.
 
-* **Stepped wedge RCT:** Clusters are randomized sequentially to cross from control to experimental intervention.
+* **Parallel cluster RCT:** Clusters are randomized instead of individual participants.
+
+* **Stepped wedge cluster RCT:** Clusters are randomized sequentially to cross from control to experimental intervention.
 
 ## DESCRIBING A CHARACTERISTIC
 
@@ -132,23 +134,82 @@ sample_mean(mean1 = 66, mean0 = 72, sigma = 23, power = 0.8,
   </details>
 </ul>
 
+
 <ul>
   <details>
-  <summary>No intermediate analysis : Stepped wedge randomization</summary>
+  <summary>No intermediate analysis : Parallel cluster randomization</summary>
   
 <br>
 <em>
-Consider the following stepped wedge RCT with 30 centers randomized in 30 sequences. The expected mean is 38 units in patients in the experimental arm versus 48 units in the control arm. In order to demonstrate such a difference of 10 units, with a standard deviation of 17 units, a 5% two-sided type I error rate and a power of 90%, the minimum sample size per arm equals 61 (i.e., a total of 122 patients) in case of individual randomization with a 1:1 ratio. According to our stepped wedge design and assuming an intraclass correlation coefficient of 0.05, we need to recruit 208 patients (104 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
+Consider the following parallel cluster RCT with 20 centers randomized in two arms. The expected mean is 38 units in patients in the experimental arm versus 48 units in the control arm. In order to demonstrate such a difference of 10 units, with a standard deviation of 17 units, a 5% two-sided type I error rate and a power of 90%, the minimum sample size per arm equals 61 (i.e., a total of 122 patients) in case of individual randomization with a 1:1 ratio. According to our parallel cluster design and assuming an intraclass correlation coefficient of 0.05, we need to recruit 168 patients (84 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
 </em>
 
 ```r
 library(epiR)
 
-SampleSize_SW <- function(mean1, mean0, sigma, r, power, sided.test, conf.level,
+SampleSize_CRT <- function(mean1, mean0, sigma, power, sided.test, conf.level,
+center, icc) {
+  
+  SampSize_I <- epi.sscompc(treat = mean1, control = mean0, sigma = sigma, n = NA, 
+                          r = 1, power = power, sided.test = sided.test, conf.level = conf.level)
+  
+  if (SampSize_I$n.treat<30 | SampSize_I$n.control<30) {
+    warning("--> At least one group size is < 30, in case of individual randomisation. Normality 
+    assumption is questionnable and sample size calculation may not be valid.")
+  }
+  
+  ni <- SampSize_I$n.total
+  Npat_center <- (ni*(1-icc))/(center-(ni*icc))
+  N_tot_CRT <- Npat_center*center   
+  
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_CRT /2))
+  names(res) <- c("n.indiv","n.CRT")
+  return(res)
+
+}
+
+SampleSize_CRT(mean1 = 38, mean0 = 48, sigma = 17, power = 0.9, sided.test = 2,
+              conf.level = 1-0.05, center = 20, icc = 0.05)
+
+# $n.indiv
+# [1] 122
+# 
+# $n.CRT
+# [1] 168
+
+```
+
+**Input parameters:**
+* mean1: expected mean in the experimental arm
+* mean0: expected mean in the control arm
+* sigma: expected standard deviation in the two arms
+* power: required power (1 minus type II error rate)
+* sided.test: one-sided test (1) or two-sided test (2) 
+* conf.level: required confidence level (1 minus type I error rate)
+* center: number of centers
+* icc: expected intraclass correlation coefficient
+
+	</details>
+</ul>
+
+
+<ul>
+  <details>
+  <summary>No intermediate analysis : Stepped wedge cluster randomization</summary>
+  
+<br>
+<em>
+Consider the following stepped wedge cluster RCT with 30 centers randomized in 30 sequences. The expected mean is 38 units in patients in the experimental arm versus 48 units in the control arm. In order to demonstrate such a difference of 10 units, with a standard deviation of 17 units, a 5% two-sided type I error rate and a power of 90%, the minimum sample size per arm equals 61 (i.e., a total of 122 patients) in case of individual randomization with a 1:1 ratio. According to our stepped wedge design and assuming an intraclass correlation coefficient of 0.05, we need to recruit 208 patients (104 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
+</em>
+
+```r
+library(epiR)
+
+SampleSize_SW <- function(mean1, mean0, sigma, power, sided.test, conf.level,
 center, sequence, icc) {
   
   SampSize_I <- epi.sscompc(treat = mean1, control = mean0, sigma = sigma, n = NA, 
-                          r = r, power = power, sided.test = sided.test, conf.level = conf.level)
+                          r = 1, power = power, sided.test = sided.test, conf.level = conf.level)
   
   if (SampSize_I$n.treat<30 | SampSize_I$n.control<30) {
     warning("--> At least one group size is < 30, in case of individual randomisation. Normality 
@@ -171,7 +232,7 @@ center, sequence, icc) {
 
 }
 
-SampleSize_SW(mean1 = 38, mean0 = 48, sigma = 17, r=1, power = 0.9, sided.test = 2,
+SampleSize_SW(mean1 = 38, mean0 = 48, sigma = 17, power = 0.9, sided.test = 2,
               conf.level = 1-0.05, center = 30, sequence = 30, icc = 0.05)
 
 # $n.indiv
@@ -186,7 +247,6 @@ SampleSize_SW(mean1 = 38, mean0 = 48, sigma = 17, r=1, power = 0.9, sided.test =
 * mean1: expected mean in the experimental arm
 * mean0: expected mean in the control arm
 * sigma: expected standard deviation in the two arms
-* r: individual randomization ratio (experimental:control)
 * power: required power (1 minus type II error rate)
 * sided.test: one-sided test (1) or two-sided test (2) 
 * conf.level: required confidence level (1 minus type I error rate)
@@ -302,9 +362,66 @@ sample_mean(mean0 = 66, sigma = 23, delta = 7, r = 1, power = 0.8, alpha = 0.05)
   </details>
 </ul>
 
+
 <ul>
   <details>
-  <summary>No intermediate analysis : Stepped wedge randomization</summary>
+  <summary>No intermediate analysis : Parallel cluster randomization</summary>
+  
+<br>
+<em>
+Consider the following parallel cluster RCT with 20 centers randomized in two arms. The expected mean is 48 units in patients in the control arm and no difference compared to the experimental arm. Assuming an absolute non-inferiority margin of 7 points, a standard deviation of 17, the minimum sample size per arm equals 102 (i.e., a total of 204 patients) to achieve a 5% one-sided type I error rate and a power of 90% in case of individual randomization with a 1:1 ratio. According to our parallel cluster design and assuming an intraclass correlation coefficient of 0.05, we need to recruit 294 patients (147 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
+</em>
+
+```r
+library(epiR)
+
+SampleSize_CRT <- function(mean0, sigma, delta, power, alpha, center, icc) {
+
+  SampSize_I <- epi.ssninfc(treat = mean0, control = mean0, sigma = sigma, delta = delta, 
+                            n = NA, r = 1, power = power, alpha = alpha)
+  
+  if (SampSize_I$n.treat<30 | SampSize_I$n.control<30) {
+    warning("--> At least one group size is < 30, in case of individual randomisation. Normality 
+    assumption is questionnable and sample size calculation may not be valid.")
+  }
+  
+  ni <- SampSize_I$n.total
+  Npat_center <- (ni*(1-icc))/(center-(ni*icc))
+  N_tot_CRT <- Npat_center*center 
+  
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_CRT /2))
+  names(res) <- c("n.indiv","n.CRT")
+  return(res)
+
+}
+
+SampleSize_CRT(mean0 = 48, sigma = 17, delta = 7, power = 0.9, alpha = 0.05,
+              center = 30, icc = 0.05)
+
+# $n.indiv
+# [1] 204
+# 
+# $n.CRT
+# [1] 294
+
+```
+
+**Input parameters:**
+* mean0: expected mean in both control and experimental arms
+* sigma: expected standard deviation in the two arms
+* delta: absolute non-inferiority margin
+* power: required power (1 minus type II error rate)
+* alpha: required confidence level (type I error rate)
+* center: number of centers
+* icc: expected intraclass correlation coefficient
+
+  </details>
+</ul>
+
+
+<ul>
+  <details>
+  <summary>No intermediate analysis : Stepped wedge cluster randomization</summary>
   
 <br>
 <em>
@@ -314,10 +431,10 @@ Consider the following stepped wedge RCT with 30 centers randomized in 30 sequen
 ```r
 library(epiR)
 
-SampleSize_SW <- function(mean0, sigma, delta, r, power, alpha, center, sequence, icc) {
+SampleSize_SW <- function(mean0, sigma, delta, power, alpha, center, sequence, icc) {
 
   SampSize_I <- epi.ssninfc(treat = mean0, control = mean0, sigma = sigma, delta = delta, 
-                            n = NA, r = r, power = power, alpha = alpha)
+                            n = NA, r = 1, power = power, alpha = alpha)
   
   if (SampSize_I$n.treat<30 | SampSize_I$n.control<30) {
     warning("--> At least one group size is < 30, in case of individual randomisation. Normality 
@@ -340,7 +457,7 @@ SampleSize_SW <- function(mean0, sigma, delta, r, power, alpha, center, sequence
 
 }
 
-SampleSize_SW(mean0 = 48, sigma = 17, delta = 7, r = 1, power = 0.9, alpha = 0.05,
+SampleSize_SW(mean0 = 48, sigma = 17, delta = 7, power = 0.9, alpha = 0.05,
               center = 30, sequence = 30, icc = 0.05)
 
 # $n.indiv
@@ -355,12 +472,11 @@ SampleSize_SW(mean0 = 48, sigma = 17, delta = 7, r = 1, power = 0.9, alpha = 0.0
 * mean0: expected mean in both control and experimental arms
 * sigma: expected standard deviation in the two arms
 * delta: absolute non-inferiority margin
-* r: individual randomization ratio (experimental:control)
 * power: required power (1 minus type II error rate)
-* alpha: required confidence level (type I error rate)
+* alpha: required type I error rate
 * center: number of centers
 * sequence: number of sequences
-* icc: expected ntraclass correlation coefficient
+* icc: expected intraclass correlation coefficient
 
   </details>
 </ul>
@@ -414,7 +530,7 @@ summary(designPlan)
 
 ## COMPARING TWO PROPORTIONS
 
-### &nbsp;&nbsp;&nbsp;&nbsp;SUPERIORITY
+### &nbsp;&nbsp;&nbsp;&nbsp;SUPERIORITY TRIALS
 
 <ul>
   <details>
@@ -485,7 +601,69 @@ sample_proportion(p1 = 0.35, p0 = 0.28, power = 0.80,
 
 <ul>
   <details>
-    <summary>No intermediate analysis : Stepped wedge randomization</summary>
+    <summary>No intermediate analysis : Parallel cluster randomization</summary>
+    
+<br>
+<em>
+Consider the following parallel cluster RCT with 16 centers randomized in two arms. The expected proportion of events is 25% in the experimental arm compared to 35% in the control arm. In order to demonstrate such a difference of 10%, with a two-sided type I error rate of 5% and a power of 80%, the minimum sample size per arm equals 329 (i.e., a total of 658 patients) in case of individual randomization with a 1:1 ratio. According to our parallel cluster design and assuming an intraclass correlation coefficient of 0.01, we need to recruit 1,108 patients (554 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
+</em>
+
+```r
+library(epiR)
+
+SampleSize_CRT <- function(p1, p0, power, sided.test, conf.level, center, icc) {
+  
+  SampSize_I <- epi.sscohortc(irexp1 = p1, irexp0 = p0, n = NA, r = 1,
+                              power = power, sided.test = sided.test, conf.level = conf.level)
+                              
+  
+  if (SampSize_I$n.exp1<30 | SampSize_I$n.exp0<30) {
+  warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+  size calculation may not be valid.")
+  }
+  pmean <- (p1+p0)/2
+  if (pmean*SampSize_I$n.exp1 <5 | pmean*SampSize_I$n.exp0 <5 
+  | (1-pmean)*SampSize_I$n.exp1 < 5 | (1-pmean)*SampSize_I$n.exp0 <5) {
+  warning("--> At least one theoretical effective is < 5, normality assumption is questionnable 
+  and sample size calculation may not be valid.")
+  }
+
+  ni <- SampSize_I$n.total
+  Npat_center <- (ni*(1-icc))/(center-(ni*icc))
+  N_tot_CRT <- Npat_center*center 
+  
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_CRT /2))
+  names(res) <- c("n.indiv","n.CRT")
+  return(res)
+}
+
+SampleSize_CRT(p1 = 0.25, p0 = 0.35, power = 0.80, sided.test = 2, 
+              conf.level = 1-0.05, center = 16, icc = 0.01)
+
+# $n.indiv
+# [1] 658
+# 
+# $n.CRT
+# [1] 1108
+
+```
+	
+**Input parameters:**
+*	p1: expected proportion in the experimental group
+*	p0: expected proportion in the control group
+*	power: required power (1 minus type II error rate)
+* sided.test: one-sided test (1), two-sided test (2)
+* conf.level: required confidence level (1 minus type I error rate)
+* center: number of centers
+* icc: expected intraclass correlation coefficient
+
+  </details>
+</ul>
+
+
+<ul>
+  <details>
+    <summary>No intermediate analysis : Stepped wedge cluster randomization</summary>
     
 <br>
 <em>
@@ -495,9 +673,9 @@ Consider the following stepped wedge RCT with 15 centers randomized in 5 sequenc
 ```r
 library(epiR)
 
-SampleSize_SW <- function(p1, p0, r, power, sided.test, conf.level, center, sequence, icc) {
+SampleSize_SW <- function(p1, p0, power, sided.test, conf.level, center, sequence, icc) {
   
-  SampSize_I <- epi.sscohortc(irexp1 = p1, irexp0 = p0, n = NA, r = r,
+  SampSize_I <- epi.sscohortc(irexp1 = p1, irexp0 = p0, n = NA, r = 1,
                               power = power, sided.test = sided.test, conf.level = conf.level)
                               
   
@@ -527,7 +705,7 @@ SampleSize_SW <- function(p1, p0, r, power, sided.test, conf.level, center, sequ
   return(res)
 }
 
-SampleSize_SW(p1 = 0.72, p0 = 0.62, r = 1, power = 0.80, sided.test = 2, 
+SampleSize_SW(p1 = 0.72, p0 = 0.62, power = 0.80, sided.test = 2, 
               conf.level = 1-0.05, center = 15, sequence = 5, icc = 0.01)
 
 # $n.indiv
@@ -541,7 +719,6 @@ SampleSize_SW(p1 = 0.72, p0 = 0.62, r = 1, power = 0.80, sided.test = 2,
 **Input parameters:**
 *	p1: expected proportion in the experimental group
 *	p0: expected proportion in the control group
-* r: individual randomization ratio (experimental:control)
 *	power: required power (1 minus type II error rate)
 * sided.test: one-sided test (1), two-sided test (2)
 * conf.level: required confidence level (1 minus type I error rate)
@@ -600,7 +777,7 @@ summary(designPlan)
   </details>
 </ul>
 
-### &nbsp;&nbsp;&nbsp;&nbsp;NON-INFERIORITY
+### &nbsp;&nbsp;&nbsp;&nbsp;NON-INFERIORITY TRIALS
 
 <ul>
   <details>
@@ -662,19 +839,78 @@ sample_proportion(p0 = 0.35, delta = 0.05, r = 1, power = 0.8, alpha = 0.05)
 
 <ul>
   <details>
-  <summary>No intermediate analysis : Stepped wedge randomization</summary>
+  <summary>No intermediate analysis : Parallel cluster randomization</summary>
 
 <br>
 <em>
-Consider the following stepped wedge RCT with 15 centers randomized in 5 sequences. The expected proportion of events is 72% in patients in the control arm and no difference compared to the experimental arm. Assuming an absolute non-inferiority margin of 8%, the minimum sample size per arm equals 390 (i.e., a total of 780 patients) to achieve a one-sided type I error rate of 5% and a power of 80%, in case of individual randomization with a 1 :1 ratio. According to our stepped wedge design and assuming an intraclass correlation coefficient of 0.01, we need to recruit 1,890 patients (945 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
+Consider the following parallel cluster RCT with 16 centers randomized in two arms. The expected proportion of events is 69% in patients in the control arm and no difference compared to the experimental arm. Assuming an absolute non-inferiority margin of 8%, the minimum sample size per arm equals 414 (i.e., a total of 828 patients) to achieve a one-sided type I error rate of 5% and a power of 80%, in case of individual randomization with a 1 :1 ratio. According to our parallel cluster design and assuming an intraclass correlation coefficient of 0.01, we need to recruit 1,700 patients (850 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
 </em>
 
 ```r
 library(epiR)
 
-SampleSize_SW <- function(p0, delta, r, power, alpha, center, sequence, icc) {
+SampleSize_CRT <- function(p0, delta, power, alpha, center, icc) {
   
-  SampSize_I <- epi.ssninfb(treat = p0, control = p0, delta = delta, n = NA, r = r,
+  SampSize_I <- epi.ssninfb(treat = p0, control = p0, delta = delta, n = NA, r = 1,
+                            power = power, alpha = alpha)
+                              
+  
+  if (SampSize_I$n.treat<30 | SampSize_I$n.control<30) {
+    warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+    size calculation may not be valid.")
+  }
+  pmean <- p0
+  if (pmean*SampSize_I$n.treat <5 | pmean*SampSize_I$n.control <5 
+  | (1-pmean)*SampSize_I$n.treat < 5 | (1-pmean)*SampSize_I$n.control <5) {
+    warning("--> At least one theoretical effective is < 5, normality assumption is questionnable 
+    and sample size calculation may not be valid.")
+  }
+
+  ni <- SampSize_I$n.total
+  Npat_center <- (ni*(1-icc))/(center-(ni*icc))
+  N_tot_CRT <- Npat_center*center 
+
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_CRT /2))
+  names(res) <- c("n.indiv","n.CRT")
+  return(res)
+}
+
+SampleSize_CRT(p0=0.69, delta=0.08, power=0.8, alpha=0.05, center=16, icc=0.01)
+
+# $n.indiv
+# [1] 828
+# 
+# $n.CRT
+# [1] 1700
+```
+
+**Input parameters:**
+* p0: expected proportion in both control and experimental arms
+* delta: absolute non-inferiority margin
+* power: required power (1 minus type II error rate)
+* alpha: required type I error rate
+* center: number of centers
+* icc: expected intraclass correlation coefficient
+
+  </details>
+</ul>
+
+
+<ul>
+  <details>
+  <summary>No intermediate analysis : Stepped wedge cluster randomization</summary>
+
+<br>
+<em>
+Consider the following stepped wedge CRT with 15 centers randomized in 5 sequences. The expected proportion of events is 72% in patients in the control arm and no difference compared to the experimental arm. Assuming an absolute non-inferiority margin of 8%, the minimum sample size per arm equals 390 (i.e., a total of 780 patients) to achieve a one-sided type I error rate of 5% and a power of 80%, in case of individual randomization with a 1 :1 ratio. According to our stepped wedge design and assuming an intraclass correlation coefficient of 0.01, we need to recruit 1,890 patients (945 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
+</em>
+
+```r
+library(epiR)
+
+SampleSize_SW <- function(p0, delta, power, alpha, center, sequence, icc) {
+  
+  SampSize_I <- epi.ssninfb(treat = p0, control = p0, delta = delta, n = NA, r = 1,
                             power = power, alpha = alpha)
                               
   
@@ -704,7 +940,7 @@ SampleSize_SW <- function(p0, delta, r, power, alpha, center, sequence, icc) {
   return(res)
 }
 
-SampleSize_SW(p0=0.72, delta=0.08, r=1, power=0.8, alpha=0.05, center=15, sequence=5, icc=0.01)
+SampleSize_SW(p0=0.72, delta=0.08, power=0.8, alpha=0.05, center=15, sequence=5, icc=0.01)
 
 # $n.indiv
 # [1] 780
@@ -716,7 +952,6 @@ SampleSize_SW(p0=0.72, delta=0.08, r=1, power=0.8, alpha=0.05, center=15, sequen
 **Input parameters:**
 * p0: expected proportion in both control and experimental arms
 * delta: absolute non-inferiority margin
-* r: individual randomization ratio (experimental:control)
 * power: required power (1 minus type II error rate)
 * alpha: required type I error rate
 * center: number of centers
@@ -769,6 +1004,145 @@ summary(designPlan)
 
   </details>
 </ul>
+
+
+## COMPARING TWO SURVIVAL CURVES
+
+### &nbsp;&nbsp;&nbsp;&nbsp;SUPERIORITY TRIALS
+
+<ul>
+  <details>
+    <summary>No intermediate analysis : Individual randomization</summary>
+    
+<br>
+<em>
+Consider the following RCT with two parallel groups with a 1:1 randomization ratio. The expected survival proportion is 70% in the experimental arm compared to 60% in the control arm at 5-years after diagnosis. In order to demonstrate such a difference, with a two-sided type I error rate of 5% and a power of 80%, the minimum sample size per arm equals 691 (i.e., a total of 1,382 patients).
+(Machin, D., Campbell, M.J., Tan, S.B., Tan, S.H. (2009). Sample Size Tables for Clinical Studies (3rd ed.). Blackwell Publishing)
+
+</em>
+
+```r
+
+sample_survival <- function(p1, p0, power, r, alpha) {
+
+  HR <- log(p1)/log(p0)
+  phi <- 1/r
+  m1 <- (1/phi)* (((1+phi*HR)/(1-HR))^2)* ((qnorm(p=1-(alpha/2),mean=0,sd=1)+qnorm(p=power,mean=0,sd=1))^2) / (1-p1 + phi*(1-p0))
+  N.gp1 <- ceiling(m1)
+  N.gp0 <- phi*N.gp1
+  Ntotal <- N.gp1 + N.gp0
+  
+  if (N.gp1<30 | N.gp0<30) {
+  warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+  size calculation may not be valid.")
+  }
+  
+  res <- list(Ntotal, N.gp1, N.gp0)
+  names(res) <- c("n.total","n.gp1","n.gp0")
+  return(res)
+
+}
+
+sample_survival(p1 = 0.70, p0 = 0.60, power = 0.80, 
+                  r = 1, sided.test = 2, alpha = 0.05)
+
+#> $n.total
+#> [1] 712
+
+#> $n.gp1
+#> [1] 356
+
+#> $n.gp0
+#> [1] 356
+
+```
+	
+**Input parameters:**
+*	p1: expected survival proportion in the experimental arm
+*	p0: expected survival proportion in the control arm
+*	power: required power (1 minus type II error rate)
+* r: randomization ratio (experimental:control)
+* alpha: recquired type I error rate
+
+    </summary>
+  </details>
+</ul>
+
+
+
+<ul>
+  <details>
+    <summary>No intermediate analysis : Stepped wedge cluster randomization</summary>
+    
+<br>
+<em>
+Consider the following stepped wedge RCT with 15 centers randomized in 5 sequences. The expected survival proportion of events is 40% in the experimental arm compared to 30% in the control arm. In order to demonstrate such a difference, with a two-sided type I error rate of 5% and a power of 80%, the minimum sample size per arm equals 328 (i.e., a total of 656 patients) in case of individual randomization with a 1:1 ratio. (Machin, D., Campbell, M.J., Tan, S.B., Tan, S.H. (2009). Sample Size Tables for Clinical Studies (3rd ed.). Blackwell Publishing)
+According to our stepped wedge design and assuming an intraclass correlation coefficient of 0.01, we need to recruit 1,548 patients (774 in each arm). (Hemming K, Taljaard M. Sample size calculations for stepped wedge and cluster randomised trials: a unified approach. J Clin Epidemiol. 2016 Jan;69:137-46)
+</em>
+
+```r
+
+SampleSize_SW <- function(p1, p0, power, alpha, center, sequence, icc) {
+  
+  sample_survival <- function(p1, p0, power, r=1, alpha) {
+    HR <- log(p1)/log(p0)
+    phi <- 1/r
+    m1 <- (1/phi)* (((1+phi*HR)/(1-HR))^2)* ((qnorm(p=1-(alpha/2),mean=0,sd=1)+qnorm(p=power,mean=0,sd=1))^2) / (1-p1 + phi*(1-p0))
+    N.gp1 <- ceiling(m1)
+    N.gp0 <- phi*N.gp1
+    Ntotal <- N.gp1 + N.gp0
+    
+    res <- list(Ntotal, N.gp1, N.gp0)
+    names(res) <- c("n.total","n.gp1","n.gp0")
+    return(res)
+  }
+
+  SampSize_I <- sample_survival(p1=p1, p0=p0, power=power, r=1, alpha=alpha)
+                      
+  if (SampSize_I$n.gp1<30 | SampSize_I$n.gp0<30) {
+  warning("--> At least one group size is < 30, normality assumption is questionnable and sample 
+  size calculation may not be valid.")
+  }
+
+  ni <- SampSize_I$n.total
+  aa <- -2*center*(sequence - 1/sequence)*icc*(1+sequence/2) 
+  bb <- 3*ni*(1-icc)*icc*(1+sequence) - 2*center*(sequence -1/sequence)*(1-icc)
+  cc <- 3*ni*(1-icc)*(1-icc)
+  m1 <- (-bb + sqrt(bb^2 - 4*aa*cc)) / (2*aa)
+  m2 <- (-bb - sqrt(bb^2 - 4*aa*cc)) / (2*aa)
+  m_sol <- max(m1,m2) 
+  Npat_center <- m_sol*(sequence+1) 
+  N_tot_SW <- Npat_center*center 
+  
+  res <- list(SampSize_I$n.total,2*ceiling(N_tot_SW /2))
+  names(res) <- c("n.indiv","n.SW")
+  return(res)
+}
+
+SampleSize_SW(p1 = 0.4, p0 = 0.3, power = 0.80, 
+              alpha = 0.05, center = 15, sequence = 5, icc = 0.01)
+
+# $n.indiv
+# [1] 656
+# 
+# $n.SW
+# [1] 1548
+
+```
+	
+**Input parameters:**
+*	p1: expected proportion in the experimental group
+*	p0: expected proportion in the control group
+*	power: required power (1 minus type II error rate)
+* alpha: required type I error rate
+* center: number of centers
+* sequence: number of sequences
+* icc: expected intraclass correlation coefficient
+
+  </details>
+</ul>
+
+
 
 ## PREDICTING A PROPORTION
 
