@@ -240,6 +240,12 @@ tabItem(tabName = "hiddenChartsDP",
                                  value = 0.05,
                                  step = 0.05)),
                   conditionalPanel(
+                    condition = "input.meanDesign == 'No intermediate analysis with parallel cluster randomization'",
+                    numericInput(inputId = "centersMean",
+                                 label = "Number of centers",
+                                 value = NULL,
+                                 step = 1)),
+                  conditionalPanel(
                     condition = "input.meanDesign == 'Intermediate analysis with individual randomization'",
                     numericInput(inputId = "meanSlice",
                                  label = "Number of planned intermediate analysis",
@@ -267,6 +273,14 @@ tabItem(tabName = "hiddenChartsDP",
                 ),
               conditionalPanel(
                 condition = "input.meanDesign == 'No intermediate analysis with stepped wedge randomization'",
+                fluidRow(column(width = 12,
+                                tags$a("Hemming K and Taljaard M. Sample size calculations for 
+                                       stepped wedge and cluster randomised trials: a unified 
+                                       approach. J Clin Epidemiol. 2016 Jan;69:137-46",
+                                       href = "https://www.sciencedirect.com/science/article/pii/S089543561500414X")))
+              ),
+              conditionalPanel(
+                condition = "input.meanDesign == 'No intermediate analysis with parallel cluster randomization'",
                 fluidRow(column(width = 12,
                                 tags$a("Hemming K and Taljaard M. Sample size calculations for 
                                        stepped wedge and cluster randomised trials: a unified 
@@ -339,6 +353,12 @@ tabItem(tabName = "hiddenChartsDP",
                                   value = 0.05,
                                   step = 0.05)),
                    conditionalPanel(
+                     condition = "input.propDesign == 'No intermediate analysis with parallel cluster randomization'",
+                     numericInput(inputId = "centersProp",
+                                  label = "Number of centers",
+                                  value = NULL,
+                                  step = 1)),
+                   conditionalPanel(
                      condition = "input.hypProp == 'Non-inferiority'",
                      numericInput(inputId = "deltaProp",
                                   label = "Absolute non-inferiority margin (%)",
@@ -372,6 +392,14 @@ tabItem(tabName = "hiddenChartsDP",
               ),
               conditionalPanel(
                 condition = "input.propDesign == 'No intermediate analysis with stepped wedge randomization'",
+                fluidRow(column(width = 12,
+                                tags$a("Hemming K, Taljaard M. Sample size calculations for 
+                                       stepped wedge and cluster randomised trials: a unified 
+                                       approach. J Clin Epidemiol. 2016 Jan;69:137-46",
+                                       href = "https://www.sciencedirect.com/science/article/pii/S089543561500414X")))
+              ),
+              conditionalPanel(
+                condition = "input.propDesign == 'No intermediate analysis with parallel cluster randomization'",
                 fluidRow(column(width = 12,
                                 tags$a("Hemming K, Taljaard M. Sample size calculations for 
                                        stepped wedge and cluster randomised trials: a unified 
